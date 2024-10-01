@@ -12,102 +12,13 @@
 
 ---
 
-## 1. OSIV 이해를 위한 사전지식
-
-OSIV 패턴을 이해하기 위해서는 하이버네이트(Hibernate) 매커니즘을 알아야합니다. OSIV를 이해하기 위한 사전지식을 간단히 짚고 넘어가겠습니다. 
-
-### 1.1 하이버네이트 엔티티의 생명주기
-
-하이버네이트 엔티티에는 다음 4가지의 상태가 존재합니다. 
-
-- 비영속(new/trasient)
-- 영속(managed)
-- 준영속(detached)
-- 삭제(removed)
-
-<img width="563" alt="image" src="https://github.com/user-attachments/assets/4363cb54-ed4f-4db5-8427-30eee288bd59">
-
-각 상태에 대해 간략히 설명하겠습니다. 
-
-- 비영속 상태는 영속성 컨텍스나 데이터베이스와 전혀 관련이 없는 상태를 의미합니다.
-
-```java
-// 데이터베이스 트랜잭션 시작
-EntityTransaction tx = entityManager.getTrasaction();
-tx.begin();
-
-// 객체를 생성한 상태(비영속)
-Dashboard dashboard = new Dashboard();
-dashboard.setId = 1L;
-dashboard.setClub = aClub;
-```
-
-위처럼 순수한 객체 상태이고 아직 데이터베이스에 저장하지 않은 객체의 상태를 비영속 상태라고 합니다.
-
-- 영속 상태는 영속성 컨텍스트가 관리하는 엔티티의 상태를 의미합니다.
-
-```java
-// 데이터베이스 트랜잭션 시작
-EntityTransaction tx = entityManager.getTrasaction();
-tx.begin();
-
-// 객체를 생성한 상태(비영속)
-Dashboard dashboard = new Dashboard();
-dashboard.setId = 1L;
-dashboard.setClub = aClub;
-
-// 객체 영속화(영속)
-entityManager.persist(dashboard);
-
-// 데이터베이스 트랜잭션 커밋
-tx.commit()
-```
-
-엔티티 매니저를 통해서 엔티티를 영속성 컨텍스트에 저장했습니다. 이제 Dashboard 객체는 비영속 상태에서 영속 상태가 되었습니다. 즉, 영속 상태라는 것은 영속성 컨텍스트에 의해 관리되는 것을 의미합니다. 
-
-- 준영속 상태는 영속성 컨텍스트가 관리하던 영속 상태의 엔티티를 영속성 컨텍스트가 관리하지 않는 상태를 의미합니다.
-
-```java
-// 데이터베이스 트랜잭션 시작
-EntityTransaction tx = entityManager.getTrasaction();
-tx.begin();
-
-// 객체를 생성한 상태(비영속)
-Dashboard dashboard = new Dashboard();
-dashboard.setId = 1L;
-dashboard.setClub = aClub;
-
-// 객체 영속화(영속)
-entityManager.persist(dashboard);
-
-// 데이터베이스 트랜잭션 커밋
-tx.commit()
-
-// 엔티티 매니저 종료. 영속성 컨텍스트의 모든 엔티티들이 준영속 상태가 된다.
-entityManager.detach(Dashboard)
-
-// 밑의 방법을 통해서도 엔티티를 준영속 상태로 만들 수 있다. 
-// entityManager.close();
-// entityManager.clear()
-```
-
-특정 엔티티를 준영속 상태로 만들기 위해서는 entityManager.detach() 를 호출하면 됩니다. entityManager.close() 또는 entityManager.clear()를 호출해서 영속성 컨텍스트를 초기화를 통해서 엔티티들을 준영속 상태로 만들 수 있습니다. 
-
-하이버네이트가 작업단위를 마치면 영속성 컨텍스트가 종료됩니다. 하지만 어플리케이션은 사용 중이던 엔티티 객체들을 참조하고 있습니다. 영속성 컨텍스트가 종료되기 때문에 데이터베이스와의 연동은 보장하지 않지만, 어플리케이션 메모리에 여전히 존재하는 상태를 의미합니다. 
-
-- 삭제 상태는 영속성 컨텍스트에 엔티티가 삭제될 것이라고 기록한 상태이다. 즉, 영속성 컨텍스트와 데이터베이스에서 삭제한다는 것을 의미합니다.
-
-### 1.2 하이버네이트 세션과 작업 단위
-
-“””
-
-## 2. OSIV의 정의 및 개념
+## OSIV의 정의 및 개념
 
 ---
 
  `OSIV(Open Session in View)`는 영속성 컨텍스트를 뷰 영역까지 열어둔다는 것이다. 여기서 뷰는 스프링 MVC의 뷰(View)를 의미합니다.  해당 개념은 Hibernate와 JPA에서 데이테베이스 세션을 관리하는 전략 중 하나입니다. 
 
-### 2.1 OSIV 등장 배경
+### OSIV 등장 배경
 
  OSIV 패턴 등장 이전에는 뷰를 렌더링하는 시점에 영속성 컨텍스트가 존재하지 않아 준영속 상태가 된 객체의 프록시를 초기화 할 수 없는 문제가 있었습니다. 예시 코드와 함께 문제를 살펴보겠습니다. 
 
@@ -202,11 +113,11 @@ Post 조회 요청 실행 경로와, 세션 및 트랜잭션의 유지를 그림
 
 위 문제를 해결하기 위해 등장한 개념이 OSIV입니다. OSIV는의 목적은 뷰에서도  `Lazy Loading`을 지원하여, 필요한 데이터만 효율적으로 가져올 수 있도록 하는 것입니다. 사용자의 요청마다 필요한 데이터가 다를 수 있으므로, 모든 데이터를 한 번에 가져오는 대신에 사용자가 요청한 데이터만을 가져옴으로써 성능을 향상시키는데 기여합니다. 
 
-## 3. 스프링 프레임워크 OSIV
+## 스프링 프레임워크 OSIV
 
  스프링 프레임워크가 제공하는 OSIV는 비즈니스 계층에서 트랜잭션을 사용하는 OSIV입니다. 즉, OSIV를 사용하지만 트랜잭션은 비즈니스 계층에서만 사용한다는 뜻입니다. 
 
-### 3.1 스프링 프레임워크 OSIV 동작과정
+### 스프링 프레임워크 OSIV 동작과정
 
 <img width="870" alt="osiv2" src="https://github.com/user-attachments/assets/d17ae427-bebd-4791-b0fe-9ce84bc11263">
 
@@ -235,7 +146,7 @@ spring:
     open-in-view: false
 ```
 
-## 3.1 OSIV 장점과 단점
+## OSIV 장점과 단점
 
 OSIV를 통해 얻을 수 있는 장점에 대해 알아보겠습니다. 
 
@@ -307,9 +218,13 @@ public class DataSourceRouter extends AbstractRoutingDataSource {
 
 크루루 서비스에서는 SPOF의 문제를 해결하기 위해 데이터베이스 인스턴스를 두개로 분리했습니다. read-only 옵션이 적용된 트랜잭션은 읽기 전용 데이터베이스로 라우팅하고, 이 외의 트랜잭션들은 쓰기 전용 데이터베이스로 라우팅했습니다. 
 
+### 문제 상황
+
 <img width="1228" alt="databaseError" src="https://github.com/user-attachments/assets/1ed1d08a-d22f-4d71-9cdf-39a1226610f8">
 
-운영서버에 배포한뒤 test를 위해 API를 호출했습니다. 하지만 `The MySQL server is running with the --read-only option so it cant execute`  에러가 발생했습니다. 현재 읽기 전용 옵션이 적용된 데이터베이스에 쓰기 작업을 시도해서 발생한 에러입니다. 트랜잭션에 따라 데이터베이스를 분리해주었지만, 제대로 라우팅이 되지 않는 것이었습니다. 이를 정확히 확인하기 위해 디버깅을 진행했습니다. 
+운영서버에 배포한뒤 test를 위해 API를 호출했습니다. 하지만 `The MySQL server is running with the --read-only option so it cant execute`  에러가 발생했습니다. 현재 읽기 전용 옵션이 적용된 데이터베이스에 쓰기 작업을 시도해서 발생한 에러입니다. 이를 정확히 확인하기 위해 디버깅을 진행했습니다. 
+
+### 문제 분석
 
 ```java
   @Override
@@ -325,5 +240,146 @@ public class DataSourceRouter extends AbstractRoutingDataSource {
 
 <img width="531" alt="image" src="https://github.com/user-attachments/assets/d66e1d3c-c468-45df-91e7-10419913b950">
 
+데이터베이스가 지정될 때마다, 문구를 출력하게 했습니다. 그뒤 쓰기 작업에 해당하는 `대시보드 만들기` API를 호출했습니다. 처음에 read-only 트랜잭션이 시작되어 읽기 전용 데이터베이스로 지정된 것을 확인할 수 있습니다. 하지만 insert 작업이 시작되었는데도 불구하고, 쓰기 데이터베이스로 라우팅이 변경되지 않았습니다. 즉, 처음에 지정된 데이터베이스 커넥션이 요청 끝까지 유지되었다는 것을 알 수 있었습니다. 그렇다면 왜 트랜잭션마다 커넥션이 새로 생성되지 않고, 처음 커넥션이 유지되었을까요?
 
-데이터베이스가 지정될 때마다, 문구를 출력하게 했습니다. 그뒤 쓰기 작업에 해당하는 `대시보드 만들기` API를 호출했습니다. 처음에 인가를 위한 ReadOnly 트랜잭션이 시작되고
+```java
+@RestController
+@RequestMapping("/v1/dashboards")
+@RequiredArgsConstructor
+public class DashboardController {
+
+    private final DashboardFacade dashboardFacade;
+
+    @PostMapping
+    // 커스텀 어노테이션을 통해 인가 대상을 알려준다.
+    @RequireAuthCheck(targetId = "clubId", targetDomain = Club.class)
+    public ResponseEntity<DashboardCreateResponse> create(
+            @RequestParam(name = "clubId") Long clubId,
+            @RequestBody @Valid DashboardCreateRequest request,
+            LoginProfile loginProfile
+    ) {
+        DashboardCreateResponse dashboardCreateResponse = dashboardFacade.create(clubId, request);
+        return ResponseEntity.created(URI.create("/v1/dashboards/" + dashboardCreateResponse.dashboardId()))
+                .body(dashboardCreateResponse);
+    }
+```
+
+```java
+@Aspect
+@Component
+@RequiredArgsConstructor
+public class AuthCheckAspect {
+
+    private static final String SERVICE_IDENTIFIER = "Service";
+
+    private final ApplicationContext applicationContext;  // 서비스 빈을 동적으로 가져오기 위해 ApplicationContext 사용
+    private final MemberService memberService;
+
+		// Controller 계층에서 해당 요청에 대한 인가를 진행합니다. 
+    @Before("@annotation(com.cruru.auth.annotation.RequireAuthCheck)")
+    public void checkAuthorization(JoinPoint joinPoint) throws Throwable {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+        RequireAuthCheck authCheck = method.getAnnotation(RequireAuthCheck.class);
+				
+				... 생략
+        authorize(domainClass, targetId, loginProfile);
+    }
+    
+     private void checkAuthorizationForTarget(
+            Class<? extends SecureResource> targetDomain,
+            Long targetId,
+            LoginProfile loginProfile
+    ) throws Exception {
+		    // 현재 로그인한 회원을 조회한다. 
+        Member member = memberService.findByEmail(loginProfile.email());
+        .
+        ... 생략
+    }
+```
+
+크루루 서비스에서는 AOP를 활용해 전역적으로 인가를 하고있습니다. 인가는 컨트롤러 계층에서 이루어지고 있습니다. 인가를 위해 맨 처음 이루어지는 과정은 현재 로그인한 회원을 조회하는 것 입니다. 로그인한 회원을 조회하는 트랜잭션의 옵션은 read-only입니다. 따라서 첫 요청의 데이터베이스는 읽기 전용 데이터베이스로 커넥션을 얻습니다. read-only 트랜잭션이 종료된 이후에도 영속성 컨텍스트가 유지되면서 동일한 커넥션이 그대로 유지됩니다. 그 결과, 이후 쓰기 작업이 발생해도 커넥션이 변경되지 않고, 여전히 읽기 전용 데이터베이스에 대한 연결을 유지한 채로 작동하게 됩니다.
+
+트랜잭션이 시작될 때만 데이터 소스가 결정되므로, 중간에 발생하는 쓰기 작업은 다시 쓰기 전용 데이터베이스로 라우팅되지 않고, 계속해서 읽기 전용 데이터베이스에 접근하는 문제가 발생합니다.
+
+### 해결방법
+
+이를 위해 고안한 해결방법은 다음 두가지입니다. 
+
+1. OSIV 활성화, 트랜잭션 전파 속성을 설정한다. 
+2. OSIV 비활성화
+
+- 트랜잭션 전파 속성 설정
+
+```java
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Dashboard create(Club club) {
+        Dashboard savedDashboard = dashboardRepository.save(new Dashboard(club));
+
+        List<Process> initProcesses = ProcessFactory.createInitProcesses(savedDashboard);
+        processRepository.saveAll(initProcesses);
+
+        return savedDashboard;
+    }
+```
+
+서비스계층에서 읽기 작업을 시작할때 새로운 트랜잭션을 시작하는 속성을 설정하는 방법입니다. `Propagation.REQUIRES_NEW`는 항상 새로운 트랜잭션을 시작하는 속성입니다. 만약 기존 트랜잭션이 존재하더라도 이를 무시하고 새로운 트랜잭션을 시작하기 때문에, 데이터 소스를 새로 지정해야 하게 됩니다. 따라서 인가 과정이 끝난뒤, 쓰기 데이터베이스로 커넥션을 얻을 수 있게 됩니다. 
+
+<img width="531" alt="image" src="https://github.com/user-attachments/assets/753cc405-b4dd-467f-a87e-a1ccc1159eeb">
+
+위처럼 쓰기 작업시 쓰기 전용 데이터베이스로 지정된 것을 확인할 수 있습니다. 
+
+- OSIV 비활성화
+
+OSIV를 비활성화하면 영속성 컨텍스트가 서비스 계층까지만 유지됩니다. 따라서 각 트랜잭션이 종료될 때마다 커넥션이 닫히고, 이후의 작업에 대해 새로운 트랜잭션이 시작되면 커넥션이 새로 생성됩니다. 따라서 `read` 트랜잭션 이후 `write` 작업 시, 쓰기 전용 데이터베이스로 라우팅이 정상적으로 작동하게 됩니다.
+
+하지만 OSIV 옵션을 끄고 요청을 하니 다음과 같은  `LazyInitializationException` 에러가 발생했습니다. 
+
+<img width="1531" alt="image" src="https://github.com/user-attachments/assets/a88c2874-38dc-484f-bbfe-b5e3c3c46998">
+
+이전에 설명했던 것처럼 뷰 영역에서 LazyLoading을 이용하지 못하게 되는 것이 원인이었습니다. 
+
+<img width="860" alt="image" src="https://github.com/user-attachments/assets/a8b49c9f-65c1-492b-a581-5810aa2ef889">
+
+현재 모든 엔티티의 fetchType이 Lazy로 설정되어있습니다. 따라서 뷰 영역에서 조회한 엔티티가 가진 Member 객체가 프록시 객체로 존재합니다. 이때 영속성 컨텍스트는 뷰까지 유지되지 않으므로, 실제 객체를 가져오지 못하는 것을 확인할 수 있습니다. 
+
+`LazyInitializationException` 문제를 해결하기 위해서 다음과 같은 방법이 있습니다. 
+
+- Fetch Join
+
+`Fetch Join`은 JPQL에서 사용하는 기법으로, 관련 엔티티를 한 번의 쿼리로 함께 가져오는 방법입니다. 일반적으로 Spring Data JPA에서 `Lazy Loading`으로 설정된 연관 엔티티는 처음에는 로드되지 않고 필요할 때 데이터를 불러오게 됩니다. 
+
+- @EntityGraph
+
+`@EntityGraph`는 JPA에서 제공하는 애너테이션으로, JPQL 없이도 특정 엔티티의 연관 엔티티를 로드할 때 `FetchType`을 지정할 수 있습니다. `@EntityGraph`를 사용하면 `Lazy Loading` 설정과 상관없이 엔티티 로딩 시 관련 엔티티를 즉시 로드할 수 있습니다.
+
+- Eager Fetching
+
+`Eager Fetching`은 엔티티를 로드할 때 즉시 연관된 모든 엔티티를 로드하는 전략입니다. `@OneToMany`나 `@ManyToOne`과 같은 관계 설정에서 `fetch = FetchType.EAGER`로 설정하면, 기본적으로 연관된 엔티티를 한 번에 가져옵니다.
+
+위 세 가지 방법은 모두 연관 엔티티를 즉시 로드하는 방식이라는 공통점이 있습니다. 
+
+```java
+  	@Query("""
+           SELECT d FROM Dashboard d 
+           JOIN FETCH d.club c 
+           JOIN FETCH c.member 
+           WHERE d.id = :id
+           """)
+    Optional<Dashboard> findByIdFetchingMember(@Param("id") long id);
+```
+
+위 코드는  `Fetch Join` 을 적용해 엔티티를 조회하는 방법입니다. Dashboard 엔티티를 조회할 때 관련된 Club, Member를 모두 조회하게 됩니다. 따라서 해당 메서드를 통해 Dashboard를 조회할때 연관된 엔티티는 프록시 객체가 아닌 실제 객체로 존재하게 됩니다. 
+
+
+<img width="860" alt="image" src="https://github.com/user-attachments/assets/b0afcada-8ab4-40f7-8aee-85809b7ae181">
+
+이전과 달리 실제 객체를 가져오는 것을 확인할 수 있습니다. 이로써 OSIV를 활성화하고, LazyLoading 문제를 해결해 트랜잭션마다 데이터베이스 커넥션을 새로 얻을 수 있게 되었습니다. 
+
+## 결론
+
+OSIV(Open Session in View)는 Hibernate와 JPA에서 영속성 컨텍스트를 뷰 렌더링 시까지 열어두는 전략으로, 지연 로딩 문제를 해결하고 필요한 데이터만 효율적으로 가져오는 데 도움을 줍니다. 이를 통해 개발자는 비즈니스 로직에 집중할 수 있으며 성능 향상 효과를 기대할 수 있습니다.
+
+하지만 OSIV는 데이터베이스 커넥션을 장시간 유지해야 하며, 트랜잭션 외부에서의 데이터 조작으로 인해 데이터 무결성 문제가 발생할 위험이 있습니다. 또한 데이터베이스 커넥션과 관련된 예상하지 못한 문제가 발생할 수 있습니다. 따라서 서비스 설계에 따라 OSIV 옵션 활성화 및 비활성화에 대해 고려해야합니다. 
+
+결론적으로, OSIV는 유용한 패턴이지만 주의가 필요하며, 올바른 트랜잭션 관리가 뒷받침되어야 합니다.
